@@ -1,0 +1,63 @@
+<html>
+    <head>
+        <title>JLokalize Developer Documentation</title>
+    </head>
+    <body>
+        <table border="0" width="1000">
+            <tr><td>
+                    <h1>Logging</h1>
+                    <p>
+                        We use the java internal logging package <i>java.util.logging.*</i> for logging
+                        into a <i>JLokalize.config/JLokalize.log</i> file which will be useful for
+                        supporting the application, i.e. customers will be asked to attach log
+                        file to their reports.
+                    </p>
+                    <h1>Internal Language Property Struct</h1>
+                    <h2>For JLokalizes own language pack</h2>
+                    <p>
+                        The list of available languages (read from within the jar file) is represented
+                        as a <i>List</i> of <i>NamedResources</i>. A <i>NamedResource</i> is a container that has a
+                        name (can be sorted via this <i>String</i>), has a <i>Resource</i> and can include an
+                        arbitrary <i>Object</i> (data). The <i>Resource</i> is basically a generalized link to
+                        a file in the file system or inside an archiv (zip, jar).<br>
+                        In our case, the <i>List</i> is populated by the <i>surveyExistingProperties</i> function
+                        in the <i>PropertiesManager</i> class, a collection of static helper functions.<br>
+                        At the start of the programm, name is set to the name in the default locale
+                        (english at startup) via locale.getDisplayName(defaultLocale) and the data
+                        object is the Locale corresponding to the language file that is specified
+                        by the Resource. The whole List is sorted alphabetically by name.<br>
+                        If in the Options a language is already chosen, this language is taken
+                        from the list, otherwise a select Language dialog is started. Then select
+                        a master language (back fall if current language does not provide a translation,
+                        purely optional) which is english by design. And finally the language is
+                        loaded from disk via static function loadProperties from PropertiesManager.<br>
+                        This basically creates a new ExtendedProperties object, loads from a Resource,
+                        and for the master does the same and sets the parent attribute in this property.
+                        Then the loaded object is stored in the central static storage and retrieved
+                        whereever needed. Also the default Locale is set accordingly.
+                    </p>
+                    <h2>For JLokalizes internal language tree handling</h2>
+                    <p>
+                        For the handling of the language packs it's done a little different for now. The reason
+                        being mostly that we need to maintain a whole tree with clear names and everything but
+                        without Locales, because we are editing the files not displaying anything. Ok, so let's see
+                        how it is done.<br>
+                        The tree is built via a call to loadExistingProperties from PropertiesManager with a base directory
+                        as project's directory (Resource) and a base name (String). Also here, an ExtendedProperties is
+                        loaded via a Resource, but then the base is set to be the projects base, then it's language tags
+                        are set and the clear name as description. Finally it's inserted in a tree consisting of
+                        TreeNodes of ExtendedProperties objects in the correct hierachy (according to language tags).
+                        Locales are not created and not stored (since the are not needed), but could be created upon request
+                        (and are so for the description).
+                    </p>
+                    <h2>Language/File Tree handling</h2>
+                    <p>
+                        As for the display of the language tree, one must implement a TreeModel (to have a working JTree) which we do by our own
+                        PropertiesTreeModel. It basically capsulate TreeNodes which does most of the work. The only specific
+                        addition is the getPathToRoot implementation which is needed by the Swing JTree framework and returns
+                        a TreePath object. Pretty much overhead but not too difficult and works.
+                    </p>
+                </td></tr>
+        </table>
+    </body>
+</html>

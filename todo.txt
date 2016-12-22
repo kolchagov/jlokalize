@@ -1,0 +1,15 @@
+Immediate issues:
+
+- Help Documentation own Menu point
+
+Long term issues:
+
+- Options: Language tree always completely expanded or always only first level expanded (after any change?)
+
+- Revert Key -> upgrade to revert last action
+
+- Last projects list in File Menu
+
+- Intelligent language tree expanding (i.e. full if not too many)
+
+- Delete key in all languages, rename key in all languages at once

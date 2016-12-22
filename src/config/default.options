@@ -1,0 +1,17 @@
+#saved by org.tools.i18n.ExProperty
+#Sat Oct 08 22:42:36 CEST 2011
+website=https\://github.com/kolchagov/jlokalize
+program.current.language=none
+split.pane.divide.text=250
+website.help=http\://jlokalize.sourceforge.net/help.html
+window.size.y=600
+split.pane.divide.navigation=130
+window.size.x=1000
+window.title=JLokalize-improved
+window.location.y=50
+split.pane.divide.editing=300
+program.open.default.directory=
+window.location.x=50
+pref.dictionary.use=true
+program.version=1.1
+
