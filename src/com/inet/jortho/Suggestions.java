@@ -22,9 +22,9 @@
  */
 package com.inet.jortho;
 
+import java.util.List;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 
 /**
  * A hash list of Suggestions. The list is cut with a max dissimilarity. If a suggestion already exist then the

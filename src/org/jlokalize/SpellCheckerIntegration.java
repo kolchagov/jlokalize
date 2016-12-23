@@ -16,40 +16,49 @@ package org.jlokalize;
 
 import com.inet.jortho.SpellChecker;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.swing.JTextArea;
 
 /**
  * Connection to the JOrtho code. Handles availability of dictionaries and
  * registering/unregistering on the components.
- * 
+ *
  * @author Trilarion 2011
  */
 public class SpellCheckerIntegration {
-    
-    /** Number of available dictionaries */
-    public static int numAvailable = 0;        
-    
+
+    private static final Logger LOG = Logger.getLogger(SpellCheckerIntegration.class.getName());
+    /**
+     * Number of available dictionaries
+     */
+    public static int numAvailable = 0;
+
     /**
      * Avoid instantiation
      */
-    private SpellCheckerIntegration() {}    
-    
+    private SpellCheckerIntegration() {
+    }
+
     /**
      * Unregisters the spell checker from two text areas.
-     * 
+     *
      * @param c1 Text area 1.
      * @param c2 Text area 2.
      */
     public static void unregisterComponents(JTextArea c1, JTextArea c2) {
         SpellChecker.unregister(c1);
         SpellChecker.unregister(c2);
-    }    
+    }
 
     /**
      * Registers the spell checker on two text areas.
-     * 
+     *
      * @param c1 Text area 1.
      * @param c2 Text area 2.
      */
@@ -57,21 +66,21 @@ public class SpellCheckerIntegration {
         SpellChecker.register(c1);
         SpellChecker.register(c2);
     }
-    
+
     /**
-     * Registers the Dictionaries. First calculate which ones are available, then
-     * register them.
+     * Registers the Dictionaries. First calculate which ones are available,
+     * then register them.
      */
     public static void registerDictionaries() {
         String names = checkDictionariesAvailable();
-        SpellChecker.registerDictionaries(Main.class.getProtectionDomain().getCodeSource().getLocation(), names, null);
+        SpellChecker.registerDictionaries(SpellCheckerIntegration.class.getResource("/"), names, null);
         SpellChecker.getOptions().setLanguageDisableVisible(true);
     }
-    
+
     /**
      * Internal function! Tests for a number of dictionaries (all that could be
      * there). Then builds a comma separated string.
-     * 
+     *
      * @return A comma separated string containing all available dictionaries.
      */
     private static String checkDictionariesAvailable() {
@@ -79,6 +88,8 @@ public class SpellCheckerIntegration {
 
         // check the availability of each of these, if so add to list
         checkDictionary(list, "en");
+        checkDictionary(list, "ar");
+        checkDictionary(list, "bg");
         checkDictionary(list, "de");
         checkDictionary(list, "es");
         checkDictionary(list, "fr");
@@ -86,7 +97,7 @@ public class SpellCheckerIntegration {
         checkDictionary(list, "nl");
         checkDictionary(list, "pl");
         checkDictionary(list, "ru");
-        
+
         numAvailable = list.size();
 
         // for all members of the list, add a comma and a space between them
@@ -105,17 +116,22 @@ public class SpellCheckerIntegration {
 
     /**
      * Internal function! Checks if a specific dictionary is available.
-     * Dictionary file name syntax is: dictionary_country_code.ortho
-     * We apply a simple file exists test.
-     * 
+     * Dictionary file name syntax is: dictionary_country_code.ortho We apply a
+     * simple file exists test.
+     *
      * @param list List of available codes.
      * @param code Code to test.
      */
     private static void checkDictionary(List<String> list, String code) {
-        String name = Main.jarPath + "dictionary_" + code + ".ortho";
-        File file = new File(name);
-        if (file.exists()) {
-            list.add(code);
+//        String name = Main.jarPath + "dictionary_" + code + ".ortho";
+        String name = "dictionary_" + code + ".ortho";
+        try {
+            InputStream res = SpellCheckerIntegration.class.getResourceAsStream("/" + name);
+            if (res != null) {
+                list.add(code);
+            }
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, null, e);
         }
     }
 }

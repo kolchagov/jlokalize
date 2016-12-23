@@ -22,6 +22,7 @@
  */
 package com.inet.jortho;
 
+import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.GridBagConstraints;
@@ -34,6 +35,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
+
 import javax.swing.*;
 
 
@@ -58,7 +60,7 @@ class DictionaryEditDialog extends JDialog{
         list = new JList( data );
         content.add( new JScrollPane(list), new GridBagConstraints( 1, 1, 1, 1, 1.0, 1.0, GridBagConstraints.NORTH ,GridBagConstraints.BOTH, new Insets( 8,8,8,8 ), 0, 0) );
         
-        delete = new JButton( Utils.getResource("delete") );
+        delete = Utils.getButton( "delete" );
         content.add( delete, new GridBagConstraints( 1, 2, 1, 1, 1.0, 0.0, GridBagConstraints.NORTH ,GridBagConstraints.BOTH, new Insets( 0,8,8,8 ), 0, 0) );
         DeleteAction deleteAction = new DeleteAction();
         delete.addActionListener( deleteAction );
@@ -138,7 +140,8 @@ class DictionaryEditDialog extends JDialog{
     @Override
     public void dispose(){
         super.dispose();
-        if( isModify ){
+        if( isModify ) {
+            // save the user dictionary
             UserDictionaryProvider provider = SpellChecker.getUserDictionaryProvider();
             if( provider != null ) {
                 ListModel model = list.getModel();
@@ -150,6 +153,17 @@ class DictionaryEditDialog extends JDialog{
                     builder.append( model.getElementAt(i) );
                 }
                 provider.setUserWords( builder.toString() );
+            }
+            // reload the dictionary
+            JMenu menu = SpellChecker.createLanguagesMenu( null );
+            Component[] comps = menu.getMenuComponents();
+            for( Component comp : comps ) {
+                if( comp instanceof JRadioButtonMenuItem ){
+                    JRadioButtonMenuItem item = (JRadioButtonMenuItem)comp;
+                    if( item.isSelected() ){
+                        item.doClick();
+                    }
+                }
             }
         }
     }

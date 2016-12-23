@@ -24,10 +24,12 @@ package com.inet.jortho;
 
 import java.awt.Component;
 import java.awt.Point;
+import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.List;
 import java.util.Locale;
+
 import javax.swing.JComponent;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
@@ -62,7 +64,7 @@ public class CheckerListener implements PopupMenuListener, LanguageChangeListene
      * @param options
      *            current spell checker options
      */
-    CheckerListener( JComponent menu, SpellCheckerOptions options ) {
+    public CheckerListener( JComponent menu, SpellCheckerOptions options ) {
         this.menu = menu;
         this.options = options == null ? SpellChecker.getOptions() : options;
         SpellChecker.addLanguageChangeLister( this );
@@ -140,7 +142,7 @@ public class CheckerListener implements PopupMenuListener, LanguageChangeListene
                 addSuggestionMenuItem( jText, begOffs, endOffs, list, needCapitalization );
                 addMenuItemAddToDictionary( jText, word, list.size() > 0 );
             } catch( BadLocationException ex ) {
-                ex.printStackTrace();
+            	SpellChecker.getMessageHandler().handleException( ex );
             }
         }
     }
@@ -156,11 +158,20 @@ public class CheckerListener implements PopupMenuListener, LanguageChangeListene
      */
     protected int getCursorPosition( JTextComponent jText ) throws BadLocationException {
         Caret caret = jText.getCaret();
-        int offs = Math.min( caret.getDot(), caret.getMark() );
+        int offs;
         Point p = jText.getMousePosition();
         if( p != null ) {
             // use position from mouse click and not from editor cursor position 
             offs = jText.viewToModel( p );
+            // calculate rectangle of line
+            int startPos = Utilities.getRowStart( jText, offs );
+            int endPos = Utilities.getRowEnd( jText, offs );
+            Rectangle bounds = jText.modelToView( startPos ).union( jText.modelToView( endPos ) );
+            if( !bounds.contains( p ) ){
+                return -1; // mouse is outside of text
+            }
+        } else {
+            offs = Math.min( caret.getDot(), caret.getMark() );
         }
         Document doc = jText.getDocument();
         if( offs > 0 && (offs >= doc.getLength() || Character.isWhitespace( doc.getText( offs, 1 ).charAt( 0 ) )) ) {

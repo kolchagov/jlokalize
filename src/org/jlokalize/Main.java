@@ -209,6 +209,7 @@ public class Main {
      */
     private static void newConfiguration(Resource resource) throws IOException {
         // config directory is not existing, copy from jar file and save at the default location
+//        Resource opt = ResourceUtils.asResource(jarPath + "JLokalize.jar/config/default.options");
         Resource opt = ResourceUtils.asResource("../../config/default.options");
         options.setLocation(opt);
         options.load(false); // without statistics

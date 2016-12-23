@@ -11,15 +11,8 @@
     <description>Builds, tests, and runs the project JLokalize.</description>
     <import file="nbproject/build-impl.xml"/>
        <target name="package-forstore" depends="jar">
-
-        <!-- Change the value of this property to be the name of your JAR,
-             minus the .jar extension. It should not have spaces.
-             <property name="store.jar.name" value="MyJarName"/>
-        -->
-        <property name="store.jar.name" value="JLokalize"/>
-
-
         <!-- don't edit below this line -->
+        <property name="store.jar.name" value="JLokalize"/>
 
         <property name="store.dir" value="store"/>
         <property name="store.jar" value="${store.dir}/${store.jar.name}.jar"/>

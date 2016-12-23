@@ -39,10 +39,10 @@ import java.util.Iterator;
 import java.util.Locale;
 import java.util.Properties;
 import java.util.WeakHashMap;
+
 import javax.swing.AbstractAction;
 import javax.swing.ButtonGroup;
 import javax.swing.JMenu;
-import javax.swing.JOptionPane;
 import javax.swing.JPopupMenu;
 import javax.swing.JRadioButtonMenuItem;
 import javax.swing.JToggleButton;
@@ -80,6 +80,8 @@ public class SpellChecker {
     private final static java.util.Map<LanguageChangeListener, Object> listeners = Collections.synchronizedMap( new WeakHashMap<LanguageChangeListener, Object>() );
     private static String applicationName;
     private static final SpellCheckerOptions globalOptions = new SpellCheckerOptions();
+    private static MessageHandler messageHandler = new DefaultMessageHandler( null );
+    private static CustomUIProvider customUIProvider;
     
     /**
      * Duplicate of Action.SELECTED_KEY since 1.6
@@ -135,30 +137,98 @@ public class SpellChecker {
     }
     
     /**
+     * Set the message handler used for handling errors and information messages. 
+     * 
+     * @param messageHandler the new MessageHandler or null (DefaultMessageHandler will be used)
+     */
+    public static void setMessageHandler( MessageHandler messageHandler ) {
+        if( messageHandler == null ) {
+            throw new IllegalArgumentException();
+        }
+        SpellChecker.messageHandler = messageHandler;
+    }
+
+    /**
+     * Gets the currently set message handler. 
+     * 
+     * @see #setMessageHandler(MessageHandler)
+     * @return the message handler, never null
+     */
+    public static MessageHandler getMessageHandler() {
+        return SpellChecker.messageHandler;
+    }
+
+    /**
+     * Set a CustomUIProvider. This can be used to add an expert UI provider
+     * that constructs advances UI components for an application that needs
+     * common components that are more than just default Swing components
+     *
+     * @param customUIProvider the new CustomUIProvider or null
+     */
+    public static void setCustomUIProvider( CustomUIProvider customUIProvider ) {
+        SpellChecker.customUIProvider = customUIProvider;
+    }
+
+    /**
+     * Gets the currently set CustomUIProvider. If none has been set then null is returned.
+     *
+     * @see #setCustomUIProvider(CustomUIProvider)
+     */
+    public static CustomUIProvider getCustomUIProvider() {
+        return SpellChecker.customUIProvider;
+    }
+
+    /**
      * Registers the available dictionaries. The dictionaries' URLs must have the form "dictionary_xx.xxxxx" and must be
      * relative to the baseURL. The available languages and extension of the dictionaries is load from a configuration file.
      * The configuration file must also relative to the baseURL and must be named dictionaries.cnf, dictionaries.properties or
      * dictionaries.txt. If the dictionary of the active Locale does not exist, the first dictionary is loaded. There is
-     * only one dictionary loaded in memory at a given time. The configuration file has a Java Properties format. Currently
-     * there are the follow options:
+     * only one dictionary loaded in memory at a given time. 
+     * You can download the dictionary files from http://sourceforge.net/projects/jortho/files/Dictionaries/
+     * The configuration file has a Java Properties format. Currently there are the follow options:
      * <ul>
      * <li>languages</li>
      * <li>extension</li>
      * </ul>
+     * <b>Samples:</b> <code><pre>
+     * // Load the configuration and dictionaries from the current working directory and use the current locale or the first language as default 
+     * SpellChecker.registerDictionaries( null, null );
+     * 
+     * // Load the configuration and dictionaries from the sub directory "dict"
+     * SpellChecker.registerDictionaries( new URL( "file", null, "dict" ), null );
+     * 
+     * // Load the configuration and dictionaries from a web server and activate English as language 
+     * SpellChecker.registerDictionaries( new URL( "http://MyWebServer/dictionries/" ), "en" );
+     * 
+     * // Load the configuration and dictionaries from the same web location like the applet and use the German dictionary as default 
+     * SpellChecker.registerDictionaries( myApplet.getCodeBase(), "de" );
+     * 
+     * // Sample content from a file dictionaries.cnf
+     * extension=.ortho
+     * languages=de,en,it,fr,es,ru
+     * </pre></code>
      * 
      * @param baseURL
-     *            the base URL where the dictionaries and configuration file can be found. If null then URL("file", null, "")
-     *            is used.
+     *            the base URL where the dictionaries and configuration file can be found. If null then first in the classloader root is searched.
+     *            After it the URL("file", null, "") is used which is equals to the current working directory.
      * @param activeLocale
      *            the locale that should be loaded and made active. If null or empty then the default locale is used.
+     * @see #setUserDictionaryProvider(UserDictionaryProvider)
+     * @see #registerDictionaries(URL, String, String)
+     * @see #registerDictionaries(URL, String, String, String)           
      */
     public static void registerDictionaries( URL baseURL, String activeLocale ) {
         if( baseURL == null ){
             try {
-                baseURL = new URL("file", null, "");
+                baseURL = SpellChecker.class.getResource( "/dictionaries.cnf" );
+                if( baseURL != null ) {
+                    baseURL = new URL( baseURL, "." );
+                } else {
+                    baseURL = new URL( "file", null, "" );
+                }
             } catch( MalformedURLException e ) {
                 // should never occur because the URL is valid
-                e.printStackTrace();
+            	SpellChecker.getMessageHandler().handleException( e );
             }
         }
         InputStream input;
@@ -172,9 +242,9 @@ public class SpellChecker {
                     input = new URL( baseURL, "dictionaries.txt" ).openStream();
                 } catch( Exception e3 ) {
                     System.err.println( "JOrtho configuration file not found!" );
-                    e1.printStackTrace();
-                    e2.printStackTrace();
-                    e3.printStackTrace();
+                	SpellChecker.getMessageHandler().handleException( e1 );
+                	SpellChecker.getMessageHandler().handleException( e2 );
+                	SpellChecker.getMessageHandler().handleException( e3 );
                     return;
                 }
             }
@@ -183,7 +253,7 @@ public class SpellChecker {
         try {
             props.load( input );
         } catch( IOException e ) {
-            e.printStackTrace();
+        	SpellChecker.getMessageHandler().handleException( e );
             return;
         }
         String availableLocales = props.getProperty( "languages" );
@@ -195,6 +265,22 @@ public class SpellChecker {
      * Registers the available dictionaries. The dictionaries' URLs must have the form "dictionary_xx.ortho" and must be
      * relative to the baseURL. If the dictionary of the active Locale does not exist, the first dictionary is loaded.
      * There is only one dictionary loaded in memory at a given time.
+     * You can download the dictionary files from http://sourceforge.net/projects/jortho/files/Dictionaries/
+     * 
+     * <p><b>Samples:</b> <code><pre>
+     * // Load the dictionaries from the current working directory and use the current locale or the first language as default 
+     * SpellChecker.registerDictionaries( null, "de,en", null );
+     * 
+     * // Load the dictionaries from the sub directory "dict"
+     * SpellChecker.registerDictionaries( new URL( "file", null, "dict" ), "de,en", null );
+     * 
+     * // Load the dictionaries from a web server and activate English as language 
+     * SpellChecker.registerDictionaries( new URL( "http://MyWebServer/dictionries/" ), "de,en", "en" );
+     * 
+     * // Load the dictionaries from the same web location like the applet and use the German dictionary as default 
+     * SpellChecker.registerDictionaries( myApplet.getCodeBase(), "de,en", "de" );
+     * 
+     * </pre></code>
      * 
      * @param baseURL
      *            the base URL where the dictionaries can be found. If null then URL("file", null, "") is used.
@@ -203,6 +289,8 @@ public class SpellChecker {
      * @param activeLocale
      *            the locale that should be loaded and made active. If null or empty then the default locale is used.
      * @see #setUserDictionaryProvider(UserDictionaryProvider)
+     * @see #registerDictionaries(URL, String)
+     * @see #registerDictionaries(URL, String, String, String)
      */
     public static void registerDictionaries( URL baseURL, String availableLocales, String activeLocale ) {
         registerDictionaries( baseURL, availableLocales, activeLocale, ".ortho" );
@@ -213,6 +301,28 @@ public class SpellChecker {
      * relative to the baseURL. The extension can be set via parameter.
      * If the dictionary of the active Locale does not exist, the first dictionary is loaded.
      * There is only one dictionary loaded in memory at a given time.
+     * You can download the dictionary files from http://sourceforge.net/projects/jortho/files/Dictionaries/
+     * 
+     * <p><b>Samples:</b> <code><pre>
+     * // Load the dictionaries from the current working directory 
+     * // and use the current locale or the first language as default.
+     * // The dictionaries must be named dictionary_de.ortho and dictionary_en.ortho
+     * SpellChecker.registerDictionaries( null, "de,en", null, ".ortho" );
+     * 
+     * // Load the dictionaries from the sub directory "dict"
+     * // and use the current locale or the first language as default.
+     * // The dictionaries must be named dict/dictionary_de.ortho and dict/dictionary_en.ortho
+     * SpellChecker.registerDictionaries( new URL( "file", null, "dict" ), "de,en", null, ".ortho" );
+     * 
+     * // Load the dictionaries from a web server and activate English as language 
+     * // The dictionaries must be named http://MyWebServer/dictionries/dictionary_de.bin and http://MyWebServer/dictionries/dictionary_en.bin
+     * SpellChecker.registerDictionaries( new URL( "http://MyWebServer/dictionries/" ), "de,en", "en", ".bin" );
+     * 
+     * // Load the configuration from the same web location like the applet and use the German dictionary as default 
+     * // The dictionaries must be named dictionary_de.bin and dictionary_en.bin in the codebase
+     * SpellChecker.registerDictionaries( myApplet.getCodeBase(), "de,en", "de", ".bin" );
+     * 
+     * </pre></code>
      * 
      * @param baseURL
      *            the base URL where the dictionaries can be found. If null then URL("file", null, "") is used.
@@ -223,6 +333,8 @@ public class SpellChecker {
      * @param extension
      *            the file extension of the dictionaries. Some web server like the IIS6 does not support the default ".ortho".
      * @see #setUserDictionaryProvider(UserDictionaryProvider)
+     * @see #registerDictionaries(URL, String)
+     * @see #registerDictionaries(URL, String, String)
      */
     public static void registerDictionaries( URL baseURL, String availableLocales, String activeLocale, String extension ) {
         if( baseURL == null ){
@@ -230,7 +342,7 @@ public class SpellChecker {
                 baseURL = new URL("file", null, "");
             } catch( MalformedURLException e ) {
                 // should never occur because the URL is valid
-                e.printStackTrace();
+            	SpellChecker.getMessageHandler().handleException( e );
             }
         }
         if( activeLocale == null ) {
@@ -274,7 +386,7 @@ public class SpellChecker {
      *             if text is null
      */
     public static void register( final JTextComponent text) throws NullPointerException{
-        register( text, true, true, true );
+        register( text, true, true, true, true );
     }
 
     /**
@@ -285,6 +397,8 @@ public class SpellChecker {
      *            the JTextComponent
      * @param hasPopup
      *            if true, the JTextComponent is to have a popup menu with the menu item "Orthography" and "Languages".
+     * @param submenu
+     *            if true, the popup has a sub menu           
      * @param hasShortKey
      *            if true, pressing the F7 key will display the spell check dialog.
      * @param hasAutoSpell
@@ -292,9 +406,9 @@ public class SpellChecker {
      * @throws NullPointerException
      *             if text is null
      */
-    public static void register( final JTextComponent text, boolean hasPopup, boolean hasShortKey, boolean hasAutoSpell ) throws NullPointerException {
+    public static void register( final JTextComponent text, boolean hasPopup, boolean submenu, boolean hasShortKey, boolean hasAutoSpell ) throws NullPointerException {
         if( hasPopup ) {
-            enablePopup( text, true );
+            enablePopup( text, true, submenu );
         }
         if( hasShortKey ) {
             enableShortKey( text, true );
@@ -311,7 +425,7 @@ public class SpellChecker {
      */
     public static void unregister( JTextComponent text ){
         enableShortKey( text, false );
-        enablePopup( text, false );
+        enablePopup( text, false, false );
         enableAutoSpell( text, false );
     }
     
@@ -375,15 +489,21 @@ public class SpellChecker {
     }
     
     /**
-     * Enable or disable the popup menu with the menu item "Orthography" and "Languages". 
+     * Enable or disable the popup menu with the menu item "Orthography" and "Languages" or only suggestion. 
      * @param text the JTextComponent that should change
+     * @param submenu true, menu item "Orthography" and "Languages"; false, only suggestions
      * @param enable true, enable the feature.
      */
-    public static void enablePopup( JTextComponent text, boolean enable ){
+    public static void enablePopup( JTextComponent text, boolean enable, boolean submenu ){
         if( enable ){
-            final JPopupMenu menu = new JPopupMenu();
-            menu.add( createCheckerMenu() );
-            menu.add( createLanguagesMenu() );
+            final JPopupMenu menu;
+            if( submenu ){
+                menu = new JPopupMenu();
+                menu.add( createCheckerMenu() );
+                menu.add( createLanguagesMenu() );
+            } else {
+                menu = createCheckerPopup();
+            }
             text.addMouseListener( new PopupListener(menu) );
         } else {
             for(MouseListener listener : text.getMouseListeners()){
@@ -451,8 +571,13 @@ public class SpellChecker {
      */
     private static void fireLanguageChanged( Locale oldLocale ) {
         LanguageChangeEvent ev = new LanguageChangeEvent( currentLocale, oldLocale );
-        for( LanguageChangeListener listener : listeners.keySet() ) {
-            listener.languageChanged( ev );
+        
+        Object[] list;
+        synchronized( listeners ) {
+            list = listeners.keySet().toArray();
+        }
+        for( Object listener : list ) {
+            ((LanguageChangeListener)listener).languageChanged( ev );
         }
     }
     
@@ -695,7 +820,7 @@ public class SpellChecker {
                         try {
                             factory.loadWordList( new URL( baseURL, "dictionary_" + locale + extension ) );
                         } catch( Exception ex ) {
-                            JOptionPane.showMessageDialog( null, ex.toString(), "Error", JOptionPane.ERROR_MESSAGE );
+                        	SpellChecker.getMessageHandler().handleError( ex.toString(), "Error", ex );
                         }
                          try {
                             CustomDictionaryProvider provider = userDictionaryProvider;
@@ -713,7 +838,7 @@ public class SpellChecker {
                                 }
                             }
                         } catch( Exception ex ) {
-                            JOptionPane.showMessageDialog( null, ex.toString(), "Error", JOptionPane.ERROR_MESSAGE );
+                        	SpellChecker.getMessageHandler().handleError( ex.toString(), "Error", ex );
                         }
                         Locale oldLocale = locale;
                         currentDictionary = factory.create();
@@ -765,9 +890,39 @@ public class SpellChecker {
      * one, or when calling <ode>registerDictionaries</code>.
      * @return the current <code>Locale</code> or null if none is set.
      * @see #registerDictionaries(URL, String, String)
+     * @see #isDictionaryLoaded()
      */
     public static Locale getCurrentLocale() {
         return currentLocale;
+    }
+    
+    /**
+     * Set the current <code>Locale</code>. The call is asynchronous.
+     * @param locale the new locale, must be registered.
+     * @throws IllegalArgumentException if the locale was not registered as available.
+     * @see #registerDictionaries(URL, String, String)
+     * @see #isDictionaryLoaded()
+     * @see #getCurrentLocale()
+     */
+    public static void setCurrentLocale( Locale locale ) throws IllegalArgumentException {
+        if( locale.equals( currentLocale ) ) {
+            return;
+        }
+        for( LanguageAction language : languages ){
+            if( language.locale.equals( locale ) ){
+                language.actionPerformed( null );
+                return;
+            }
+        }
+        throw new IllegalArgumentException( "Not registered locale: " + locale );
+    }
+    
+    /**
+     * If currently a Dictionary is loaded.
+     * @return true, if a dictionary is loaded and include at minimum one word. 
+     */
+    public static boolean isDictionaryLoaded(){
+        return currentDictionary != null && currentDictionary.getDataSize() > 1;
     }
     
     /**
@@ -786,7 +941,7 @@ public class SpellChecker {
     }
  
     /**
-     * Get the default SpellCheckerOptions. This object is a singleton. That there is no get method.
+     * Get the default SpellCheckerOptions. This object is a singleton. That there is no set method.
      * @return the default SpellCheckerOptions
      */
     public static SpellCheckerOptions getOptions(){

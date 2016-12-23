@@ -96,14 +96,14 @@ abstract class DictionaryBase {
     
     
     /**
-     * Es wird nach verschiedenen Regeln nach �hnlichen W�rtern gesucht.
-     * Je nach Regel gibt es einen anderen diff. Jekleiner der diff desto �hnlicher.
-     * Diese Methode ruft sich rekursiv auf.
-     * @param list Kontainer f�r die gefundenen W�rter
-     * @param chars bis zur charPosition bereits gemappte Buchstaben, danach noch zu mappende des orignal Wortes
-     * @param charPosition Zeichenposition im char array
-     * @param lastIdx Position im Suchindex der zur aktuellen Zeichenposition zeigt.
-     * @param diff Die Un�hnlichkeit bis zur aktuellen Zeichenposition
+     * It will search with different rules for similar words.
+     * For every rule there are a different difference. The smaller the difference that so similarer.
+     * This method is calling recursive it self.
+     * @param list Container for found words
+     * @param chars until charPosition already map characters, after the part of the original word that still need to map.
+     * @param charPosition character position in char array
+     * @param lastIdx position in the index (dictionary) to the current character position
+     * @param diff the dissimilar up to the current character position
      */
     private void searchSuggestions( Suggestions list, CharSequence chars, int charPosition, int lastIdx, int diff){
         if(diff > list.getMaxDissimilarity()){
@@ -125,15 +125,14 @@ abstract class DictionaryBase {
                 }
             }
             idx = readIndex();
-            if( idx <= 0 ) {
-                // no more characters in the tree
-                return;
+            if( idx > 0 ) {
+                // more characters in the tree
+                if(charPosition+1 == chars.length()){
+                    searchSuggestionsLonger( list, chars, idx, diff + 5);
+                } else {
+                    searchSuggestions( list, chars, charPosition + 1, idx, diff );
+                }
             }
-            if(charPosition+1 == chars.length()){
-                searchSuggestionsLonger( list, chars, chars.length(), idx, diff + 5);
-                return;
-            }
-            searchSuggestions( list, chars, charPosition + 1, idx, diff );
         }
 
         
@@ -202,13 +201,14 @@ abstract class DictionaryBase {
         }
     }
     
-    private void searchSuggestionsLonger( Suggestions list, CharSequence chars, int originalLength, int lastIdx, int diff){
-        idx = lastIdx;
+    private void searchSuggestionsLonger( Suggestions list, CharSequence chars, int lastIdx, int diff){
+        int tempIdx = idx = lastIdx;
         while(idx<size && tree[idx] < LAST_CHAR){
-            if( isWordMatch() ){
-                list.add( new Suggestion( chars.toString() + tree[idx], diff ) );
-            }
-            idx += 3;
+            StringBuilder buffer = new StringBuilder();
+            buffer.append( chars );
+            buffer.append( tree[idx] );
+                searchSuggestions( list, buffer, chars.length(), idx, diff );
+            idx = tempIdx += 3;
         }
     }
     

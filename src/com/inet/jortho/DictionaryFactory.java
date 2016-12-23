@@ -1,7 +1,7 @@
 /*
  *  JOrtho
  *
- *  Copyright (C) 2005-2009 by i-net software
+ *  Copyright (C) 2005-2010 by i-net software
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License as 
@@ -24,7 +24,6 @@ package com.inet.jortho;
 
 import java.io.IOException;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.Iterator;
 
 /** 
@@ -35,7 +34,7 @@ import java.util.Iterator;
  */
 class DictionaryFactory {
 
-    private final Node root = new Node();
+    private final Node root = new Node( (char)0 );
     private char[] tree;
     private int size;
     
@@ -48,7 +47,7 @@ class DictionaryFactory {
     
     
     /**
-     * Load the directory from a compressed list of words with UTF8 encoding. The words must be delimmited with
+     * Load the directory from a compressed list of words with UTF8 encoding. The words must be delimited with
      * newlines. This method can be called multiple times.
      * 
      * @param filename
@@ -79,17 +78,12 @@ class DictionaryFactory {
         Node node = root;
         for(int i=0; i<word.length(); i++){
             char c = word.charAt(i);
-            NodeEntry entry = node.searchCharOrAdd( c );
+            Node entry = node.searchCharOrAdd( c );
             if(i == word.length()-1){
                 entry.isWord = true;
                 return;
             }
-            Node nextNode = entry.nextNode;
-            if(nextNode == null){
-                node = entry.createNewNode();
-            }else{
-                node = nextNode;
-            }
+            node = entry;
         }
     }
 
@@ -126,29 +120,31 @@ class DictionaryFactory {
     /**
      * A node in the search tree. Every Node can include a list of NodeEnties
      */
-    private final static class Node extends ArrayList<NodeEntry>{
+    private final static class Node extends LowMemoryArrayList<Node>{
 
-        Node(){
-            super(1);
+        private final char c;
+        private boolean isWord;
+        
+        Node(char c){
+            this.c = c;
         }
+        
                 
-        NodeEntry searchCharOrAdd( char c ) {
+        Node searchCharOrAdd( char c ) {
             for(int i=0; i<size(); i++){
-                NodeEntry entry = get( i );
+                Node entry = get( i );
                 if(entry.c < c){
                     continue;
                 }
                 if(entry.c == c){
                     return entry;
                 }
-                entry = new NodeEntry(c);
+                entry = new Node(c);
                 add( i, entry );
-                trimToSize(); //reduce the memory consume, there is a very large count of this Nodes.
                 return entry;
             }
-            NodeEntry entry = new NodeEntry(c);
+            Node entry = new Node(c);
             add( entry );
-            trimToSize(); //reduce the memory consume, there is a very large count of this Nodes.
             return entry;
         }
         
@@ -161,12 +157,11 @@ class DictionaryFactory {
             factory.size = newSize;
             
             for(int i=0; i<size(); i++){
-                NodeEntry entry = get( i );
+                Node entry = get( i );
                 factory.tree[idx++] = entry.c;
-                Node nextNode = entry.nextNode;
                 int offset = 0;
-                if(nextNode != null){
-                    offset = nextNode.save(factory);
+                if(entry.size() != 0){
+                    offset = entry.save(factory);
                 }
                 if(entry.isWord){
                     offset |= 0x80000000;
@@ -176,27 +171,6 @@ class DictionaryFactory {
             }
             factory.tree[idx] = DictionaryBase.LAST_CHAR;
             return start;
-        }
-    }
-    
-    /**
-     * Described a single character in the Dictionary tree.
-     */
-    private final static class NodeEntry{
-        final char c;
-        Node nextNode;
-        boolean isWord;
-        
-        NodeEntry(char c){
-            this.c = c;
-        }
-        
-        /**
-         * Create a new Node and set it as nextNode
-         * @return the nextNode
-         */
-        Node createNewNode() {
-            return nextNode = new Node();
         }
     }
     

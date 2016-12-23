@@ -23,6 +23,7 @@
 package com.inet.jortho;
 
 import java.util.Locale;
+
 import javax.swing.*;
 import javax.swing.event.*;
 import javax.swing.text.*;
@@ -147,7 +148,8 @@ class AutoSpellChecker implements DocumentListener, LanguageChangeListener {
                 return;
             }
             checkElement( element );
-            offset = element.getEndOffset();
+            int endOffset = element.getEndOffset();
+            offset = endOffset > offset ? endOffset : offset + 1;
         }while( offset <= end && offset < document.getLength() );
     }
 
@@ -194,7 +196,7 @@ class AutoSpellChecker implements DocumentListener, LanguageChangeListener {
                 highlighter.addHighlight( wordOffset, wordOffset + word.length(), painter );
             }
         } catch( BadLocationException e ) {
-            e.printStackTrace();
+        	SpellChecker.getMessageHandler().handleException( e );
         }
     }
 
